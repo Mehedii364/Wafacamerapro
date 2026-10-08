@@ -1,0 +1,6 @@
+{
+  "name": "Wafa Camera Pro",
+  "description": "Professional Camera, Smart Scanner, Photo Studio & Privacy Suite by Mehedi364",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

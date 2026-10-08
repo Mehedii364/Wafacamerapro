@@ -1,0 +1,87 @@
+<resources>
+    <string name="app_name">ওয়াফা ক্যামেরা প্রো</string>
+    <string name="developer_credit">Developed by Mehedi364</string>
+    <string name="app_tagline">প্রফেশনাল ক্যামেরা, স্মার্ট স্ক্যানার ও ফটো স্টুডিও</string>
+
+    <!-- Navigation & Modes -->
+    <string name="mode_photo">ছবি</string>
+    <string name="mode_video">ভিডিও</string>
+    <string name="mode_pro">প্রো মোড</string>
+    <string name="mode_scanner">স্মার্ট স্ক্যানার</string>
+    <string name="mode_editor">ফটো স্টুডিও</string>
+    <string name="mode_collage">কোলাজ মেকার</string>
+    <string name="mode_converter">রূপান্তরকারী</string>
+    <string name="mode_compressor">কম্প্রেসর</string>
+    <string name="mode_duplicates">ডুপ্লিকেট ফাইন্ডার</string>
+    <string name="mode_qr">কিউআর ও বারকোড</string>
+    <string name="mode_watermark">জলছাপ স্টুডিও</string>
+    <string name="mode_wallpaper">ওয়ালপেপার মেকার</string>
+    <string name="mode_gallery">গ্যালারি</string>
+    <string name="mode_settings">সেটিংস</string>
+    <string name="mode_capabilities">ডিভাইস ডায়াগনস্টিকস</string>
+    <string name="mode_privacy">প্রাইভেসি স্যুট</string>
+    <string name="mode_about">পরিচিতি</string>
+
+    <!-- Camera Controls -->
+    <string name="btn_capture">ছবি তুলুন</string>
+    <string name="btn_record_start">রেকর্ড শুরু</string>
+    <string name="btn_record_stop">রেকর্ড থামান</string>
+    <string name="btn_switch_camera">ক্যামেরা পরিবর্তন</string>
+    <string name="btn_flash">ফ্ল্যাশ</string>
+    <string name="btn_timer">টাইমার</string>
+    <string name="btn_grid">গ্রিড</string>
+    <string name="btn_aspect_ratio">অনুপাত</string>
+    <string name="btn_exposure">এক্সপোজার</string>
+    <string name="btn_zoom">জুম</string>
+    <string name="flash_auto">অটো ফ্ল্যাশ</string>
+    <string name="flash_on">ফ্ল্যাশ চালু</string>
+    <string name="flash_off">ফ্ল্যাশ বন্ধ</string>
+    <string name="flash_torch">টর্চ</string>
+
+    <!-- Scanner -->
+    <string name="scanner_title">ডকুমেন্ট স্ক্যানার</string>
+    <string name="scanner_scan_page">পৃষ্ঠা স্ক্যান</string>
+    <string name="scanner_export_pdf">PDF তৈরি করুন</string>
+    <string name="scanner_export_images">ছবি সংরক্ষণ</string>
+    <string name="scanner_run_ocr">টেক্সট রিকগনিশন (OCR)</string>
+    <string name="scanner_filter_original">আসল</string>
+    <string name="scanner_filter_grayscale">সাদা-কালো</string>
+    <string name="scanner_filter_bw">উচ্চ বৈসাদৃশ্য</string>
+    <string name="scanner_filter_doc">ডকুমেন্ট স্পষ্ট</string>
+    <string name="scanner_ocr_copied">টেক্সট কপি করা হয়েছে</string>
+    <string name="scanner_ocr_empty">কোনো লেখা শনাক্ত হয়নি</string>
+
+    <!-- Photo Editor -->
+    <string name="editor_title">ফটো স্টুডিও</string>
+    <string name="editor_save">সংরক্ষণ করুন</string>
+    <string name="editor_reset">রিসেট</string>
+    <string name="editor_undo">পূর্বাবস্থায়</string>
+    <string name="editor_redo">পুনরায়</string>
+    <string name="editor_brightness">উজ্জ্বলতা</string>
+    <string name="editor_contrast">কনট্রাস্ট</string>
+    <string name="editor_saturation">স্যাচুরেশন</string>
+    <string name="editor_warmth">উষ্ণতা</string>
+    <string name="editor_sharpness">শার্পনেস</string>
+    <string name="editor_rotate">ঘোরান ৯০°</string>
+    <string name="editor_flip_h">অনুভূমিক উল্টান</string>
+    <string name="editor_sepia">সেপিয়া</string>
+    <string name="editor_bw">মনোক্রোম</string>
+
+    <!-- Duplicate Finder -->
+    <string name="duplicate_title">ডুপ্লিকেট ক্লিনার</string>
+    <string name="duplicate_scan">স্ক্যান করুন</string>
+    <string name="duplicate_exact">হুবহু একই ছবি</string>
+    <string name="duplicate_similar">দৃশ্যত কাছাকাছি ছবি</string>
+    <string name="duplicate_delete_selected">নির্বাচিত মুছে ফেলুন</string>
+    <string name="duplicate_none_found">কোনো ডুপ্লিকেট পাওয়া যায়নি!</string>
+
+    <!-- Permissions and Info -->
+    <string name="permission_camera_title">ক্যামেরা অনুমতি প্রয়োজন</string>
+    <string name="permission_camera_desc">ওয়াফা ক্যামেরা প্রো প্রিভিউ, ছবি তোলা ও ডকুমেন্টস স্ক্যান করার জন্য ক্যামেরার অনুমতি দরকার।</string>
+    <string name="permission_audio_title">মাইক্রোফোন অনুমতি</string>
+    <string name="permission_audio_desc">ভিডিও রেকর্ডিংয়ে শব্দ ধারণ করার জন্য মাইক্রোফোন অনুমতি প্রয়োজন।</string>
+    <string name="permission_grant">অনুমতি দিন</string>
+    <string name="privacy_badge">১০০% ডিভাইসে সুরক্ষিত • কোনো ক্লাউড আপলোড নেই</string>
+    <string name="capture_success">ডিভাইসে সংরক্ষিত হয়েছে</string>
+    <string name="capture_error">ব্যর্থ হয়েছে: %1$s</string>
+</resources>

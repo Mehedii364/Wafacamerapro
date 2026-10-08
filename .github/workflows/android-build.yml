@@ -1,0 +1,92 @@
+name: Android Build & APK Package
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    paths-ignore:
+      - 'APK_DOWNLOAD/**'
+      - '.build-outputs/**'
+      - 'README.md'
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Make Gradle Wrapper Executable
+        run: chmod +x ./gradlew
+
+      - name: Build Debug APK with Gradle
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Locate and Validate Generated APK
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ] || [ ! -f "$APK_PATH" ]; then
+            echo "ERROR: No debug APK generated in app/build/outputs/apk/debug!"
+            exit 1
+          fi
+          echo "Found APK: $APK_PATH"
+          
+          # Check size
+          APK_SIZE=$(stat -c%s "$APK_PATH")
+          echo "APK Size in bytes: $APK_SIZE"
+          if [ "$APK_SIZE" -le 1000 ]; then
+            echo "ERROR: APK is suspiciously small ($APK_SIZE bytes)!"
+            exit 1
+          fi
+
+          # Verify APK is a valid zip archive
+          unzip -t "$APK_PATH" > /dev/null
+          echo "APK zip structure successfully validated!"
+
+          # Prepare output directories
+          mkdir -p .build-outputs
+          mkdir -p APK_DOWNLOAD
+
+          cp "$APK_PATH" .build-outputs/app-debug.apk
+          cp "$APK_PATH" APK_DOWNLOAD/app-debug.apk
+
+          # Verify SHA256 checksums match
+          HASH_A=$(sha256sum .build-outputs/app-debug.apk | awk '{print $1}')
+          HASH_B=$(sha256sum APK_DOWNLOAD/app-debug.apk | awk '{print $1}')
+          echo "Hash .build-outputs: $HASH_A"
+          echo "Hash APK_DOWNLOAD:   $HASH_B"
+          if [ "$HASH_A" != "$HASH_B" ]; then
+            echo "ERROR: Checksum mismatch between copied APKs!"
+            exit 1
+          fi
+
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: APK_DOWNLOAD/app-debug.apk
+          retention-days: 14
+
+      - name: Commit and Push APK to Repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f .build-outputs/app-debug.apk APK_DOWNLOAD/app-debug.apk
+          git diff --cached --quiet || git commit -m "build: update verified debug APK [skip ci]"
+          git push origin HEAD:${{ github.ref }} || echo "Push skipped or not needed"

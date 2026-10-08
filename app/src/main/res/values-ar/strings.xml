@@ -1,0 +1,87 @@
+<resources>
+    <string name="app_name">وافا كاميرا برو</string>
+    <string name="developer_credit">Developed by Mehedi364</string>
+    <string name="app_tagline">كاميرا احترافية، ماسح ذكي واستوديو صور</string>
+
+    <!-- Navigation & Modes -->
+    <string name="mode_photo">صورة</string>
+    <string name="mode_video">فيديو</string>
+    <string name="mode_pro">الوضع الاحترافي</string>
+    <string name="mode_scanner">الماسح الذكي</string>
+    <string name="mode_editor">استوديو الصور</string>
+    <string name="mode_collage">صانع الكولاج</string>
+    <string name="mode_converter">المحول</string>
+    <string name="mode_compressor">ضاغط الصور</string>
+    <string name="mode_duplicates">كاشف المكررات</string>
+    <string name="mode_qr">رمز الاستجابة السريعة والباركود</string>
+    <string name="mode_watermark">استوديو العلامة المائية</string>
+    <string name="mode_wallpaper">صانع الخلفيات</string>
+    <string name="mode_gallery">المعرض</string>
+    <string name="mode_settings">الإعدادات</string>
+    <string name="mode_capabilities">تشخيص الجهاز</string>
+    <string name="mode_privacy">جناح الخصوصية</string>
+    <string name="mode_about">حول التطبيق</string>
+
+    <!-- Camera Controls -->
+    <string name="btn_capture">التقاط صورة</string>
+    <string name="btn_record_start">بدء التسجيل</string>
+    <string name="btn_record_stop">إيقاف التسجيل</string>
+    <string name="btn_switch_camera">تبديل الكاميرا</string>
+    <string name="btn_flash">الفلاش</string>
+    <string name="btn_timer">المؤقت</string>
+    <string name="btn_grid">الشبكة</string>
+    <string name="btn_aspect_ratio">نسبة العرض</string>
+    <string name="btn_exposure">التعريض</string>
+    <string name="btn_zoom">تكبير</string>
+    <string name="flash_auto">فلاش تلقائي</string>
+    <string name="flash_on">فلاش مفعّل</string>
+    <string name="flash_off">فلاش مغلق</string>
+    <string name="flash_torch">كشاف</string>
+
+    <!-- Scanner -->
+    <string name="scanner_title">ماسح المستندات</string>
+    <string name="scanner_scan_page">مسح صفحة</string>
+    <string name="scanner_export_pdf">تصدير إلى PDF</string>
+    <string name="scanner_export_images">تصدير الصور</string>
+    <string name="scanner_run_ocr">التعرف على النص (OCR)</string>
+    <string name="scanner_filter_original">أصلي</string>
+    <string name="scanner_filter_grayscale">تدرج الرمادي</string>
+    <string name="scanner_filter_bw">أبيض وأسود عالي التباين</string>
+    <string name="scanner_filter_doc">مستند نقي</string>
+    <string name="scanner_ocr_copied">تم نسخ النص للحافظة</string>
+    <string name="scanner_ocr_empty">لم يتم العثور على نص</string>
+
+    <!-- Photo Editor -->
+    <string name="editor_title">استوديو الصور</string>
+    <string name="editor_save">حفظ</string>
+    <string name="editor_reset">إعادة تعيين</string>
+    <string name="editor_undo">تراجع</string>
+    <string name="editor_redo">إعادة</string>
+    <string name="editor_brightness">السطوع</string>
+    <string name="editor_contrast">التباين</string>
+    <string name="editor_saturation">التشبع</string>
+    <string name="editor_warmth">الدفء</string>
+    <string name="editor_sharpness">الحدة</string>
+    <string name="editor_rotate">تدوير 90°</string>
+    <string name="editor_flip_h">عكس أفقي</string>
+    <string name="editor_sepia">بني داكن</string>
+    <string name="editor_bw">أحادي اللون</string>
+
+    <!-- Duplicate Finder -->
+    <string name="duplicate_title">منظف الصور المكررة</string>
+    <string name="duplicate_scan">فحص الصور</string>
+    <string name="duplicate_exact">مطابقة تامة</string>
+    <string name="duplicate_similar">صور متشابهة</string>
+    <string name="duplicate_delete_selected">حذف المحدد</string>
+    <string name="duplicate_none_found">لم يتم العثور على تكرارات!</string>
+
+    <!-- Permissions and Info -->
+    <string name="permission_camera_title">مطلوب إذن الكاميرا</string>
+    <string name="permission_camera_desc">يتطلب وافا كاميرا برو الوصول للكاميرا للمعاينة والتقاط الصور ومسح المستندات.</string>
+    <string name="permission_audio_title">إذن الميكروفون</string>
+    <string name="permission_audio_desc">مطلوب إذن الميكروفون لتسجيل الصوت أثناء تصوير الفيديو.</string>
+    <string name="permission_grant">منح الإذن</string>
+    <string name="privacy_badge">١٠٠٪ محلي وخاص • لا يوجد رفع سحابي</string>
+    <string name="capture_success">تم الحفظ على الجهاز</string>
+    <string name="capture_error">فشل الالتقاط: %1$s</string>
+</resources>
