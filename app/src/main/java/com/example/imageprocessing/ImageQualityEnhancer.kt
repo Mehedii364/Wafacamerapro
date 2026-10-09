@@ -15,7 +15,8 @@ enum class QualityPreset {
     NATURAL,
     DETAIL,
     LOW_LIGHT,
-    HDR_STYLE
+    HDR_STYLE,
+    PORTRAIT_BOKEH
 }
 
 data class EnhancedImageResult(
@@ -41,6 +42,7 @@ object ImageQualityEnhancer {
             QualityPreset.DETAIL -> applyDetailSharpening(source)
             QualityPreset.LOW_LIGHT -> applyLowLightDenoising(source)
             QualityPreset.HDR_STYLE -> applyHdrToneMapping(source)
+            QualityPreset.PORTRAIT_BOKEH -> applyPortraitBokeh(source)
         }
 
         val elapsed = System.currentTimeMillis() - startTime
@@ -271,5 +273,91 @@ object ImageQualityEnhancer {
         } else {
             v
         }
+    }
+
+    /**
+     * Portrait Bokeh: Computational background blur with subject preservation.
+     * Uses progressive radial depth estimation, keeping the central portrait sharp
+     * while smoothing background clutter.
+     */
+    private fun applyPortraitBokeh(source: Bitmap): Bitmap {
+        val width = source.width
+        val height = source.height
+        val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+
+        // 1. Generate smooth background blur via downscaled pass
+        val scale = 0.125f // 1/8 size for fast gaussian-like bokeh
+        val smallW = (width * scale).toInt().coerceAtLeast(1)
+        val smallH = (height * scale).toInt().coerceAtLeast(1)
+        val smallBmp = Bitmap.createScaledBitmap(source, smallW, smallH, true)
+        val blurredBmp = Bitmap.createScaledBitmap(smallBmp, width, height, true)
+        smallBmp.recycle()
+
+        // 2. Blend sharp foreground subject with blurred background using radial depth falloff
+        val sharpPixels = IntArray(width * height)
+        source.getPixels(sharpPixels, 0, width, 0, 0, width, height)
+
+        val blurPixels = IntArray(width * height)
+        blurredBmp.getPixels(blurPixels, 0, width, 0, 0, width, height)
+        blurredBmp.recycle()
+
+        val blended = IntArray(width * height)
+
+        val centerX = width * 0.5f
+        val centerY = height * 0.45f
+        val radiusX = width * 0.35f
+        val radiusY = height * 0.38f
+
+        for (y in 0 until height) {
+            val dy = (y - centerY) / radiusY
+            val dy2 = dy * dy
+            val rowOffset = y * width
+
+            for (x in 0 until width) {
+                val dx = (x - centerX) / radiusX
+                val dist = dx * dx + dy2
+
+                // Smooth falloff: 0.0 inside subject, up to 1.0 in outer background
+                val blurWeight = ((dist - 0.55f) / 0.55f).coerceIn(0.0f, 1.0f)
+
+                val sp = sharpPixels[rowOffset + x]
+                val bp = blurPixels[rowOffset + x]
+
+                if (blurWeight <= 0f) {
+                    blended[rowOffset + x] = sp
+                } else if (blurWeight >= 1f) {
+                    blended[rowOffset + x] = bp
+                } else {
+                    val invW = 1.0f - blurWeight
+
+                    val sr = (sp shr 16) and 0xFF
+                    val sg = (sp shr 8) and 0xFF
+                    val sb = sp and 0xFF
+
+                    val br = (bp shr 16) and 0xFF
+                    val bg = (bp shr 8) and 0xFF
+                    val bb = bp and 0xFF
+
+                    val r = (sr * invW + br * blurWeight).toInt()
+                    val g = (sg * invW + bg * blurWeight).toInt()
+                    val b = (sb * invW + bb * blurWeight).toInt()
+
+                    blended[rowOffset + x] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+                }
+            }
+        }
+
+        output.setPixels(blended, 0, width, 0, 0, width, height)
+
+        // 3. Gentle portrait skin warmth and vibrancy
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val cm = ColorMatrix().apply {
+            setSaturation(1.04f)
+        }
+        paint.colorFilter = ColorMatrixColorFilter(cm)
+        canvas.drawBitmap(output, 0f, 0f, paint)
+
+        return output
     }
 }

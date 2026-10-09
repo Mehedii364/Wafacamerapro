@@ -7,6 +7,9 @@ import android.net.Uri
 import androidx.camera.core.CameraSelector
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.core.compatibility.CameraCapabilityManager
+import com.example.core.compatibility.DeviceCameraAudit
+import com.example.core.compatibility.LensCapabilities
 import com.example.core.storage.MediaSaver
 import com.example.data.database.WafaDatabase
 import com.example.imageprocessing.ImageQualityEnhancer
@@ -29,10 +32,58 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     private var videoDurationJob: Job? = null
     private var screenFlashJob: Job? = null
 
-    private val db = WafaDatabase.getInstance(application)
+    private var auditData: DeviceCameraAudit? = null
+
+    init {
+        loadDeviceCapabilities()
+    }
+
+    private fun loadDeviceCapabilities() {
+        viewModelScope.launch {
+            val audit = CameraCapabilityManager.auditDevice(getApplication())
+            auditData = audit
+            updateCapabilitiesForFacing(_uiState.value.lensFacing)
+        }
+    }
+
+    private fun updateCapabilitiesForFacing(facing: Int) {
+        val audit = auditData ?: return
+        val isFront = facing == CameraSelector.LENS_FACING_FRONT
+        val caps = if (isFront) audit.frontCamera else audit.rearCamera
+
+        caps?.let { c ->
+            _uiState.update {
+                it.copy(
+                    currentLensCapabilities = c,
+                    minZoomRatio = c.minZoomRatio,
+                    maxZoomRatio = c.maxZoomRatio,
+                    minExposureIndex = c.exposureRange.first,
+                    maxExposureIndex = c.exposureRange.second,
+                    exposureStep = c.exposureStep,
+                    hasFlashUnit = c.hasFlashUnit,
+                    hasManualSensorSupport = c.hasManualSensor,
+                    supportedExtensions = c.supportedExtensions
+                )
+            }
+        }
+    }
 
     fun setCaptureMode(mode: CaptureMode) {
-        _uiState.update { it.copy(captureMode = mode) }
+        _uiState.update {
+            val preset = when (mode) {
+                CaptureMode.PORTRAIT -> QualityPreset.PORTRAIT_BOKEH
+                CaptureMode.NIGHT -> QualityPreset.LOW_LIGHT
+                CaptureMode.HDR -> QualityPreset.HDR_STYLE
+                CaptureMode.PHOTO -> QualityPreset.NATURAL
+                CaptureMode.PRO -> it.qualityPreset
+                CaptureMode.VIDEO -> it.qualityPreset
+            }
+            it.copy(
+                captureMode = mode,
+                qualityPreset = preset,
+                isProMode = (mode == CaptureMode.PRO)
+            )
+        }
     }
 
     fun setProMode(isPro: Boolean) {
@@ -52,6 +103,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                 isScreenFlashActive = false
             )
         }
+        updateCapabilitiesForFacing(_uiState.value.lensFacing)
     }
 
     fun cycleFlash() {
@@ -112,6 +164,25 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun toggleZoomSlider() {
+        _uiState.update { it.copy(isZoomSliderVisible = !it.isZoomSliderVisible) }
+    }
+
+    fun toggleDoubleTapZoom() {
+        _uiState.update {
+            val target = if (it.zoomRatio <= 1.2f) {
+                2.0f.coerceAtMost(it.maxZoomRatio)
+            } else {
+                1.0f.coerceAtLeast(it.minZoomRatio)
+            }
+            it.copy(zoomRatio = target)
+        }
+    }
+
+    fun resetZoom() {
+        _uiState.update { it.copy(zoomRatio = 1.0f) }
+    }
+
     fun updateZoomBounds(min: Float, max: Float) {
         _uiState.update { it.copy(minZoomRatio = min, maxZoomRatio = max) }
     }
@@ -134,7 +205,6 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     fun toggleBacklitCompensation() {
         _uiState.update {
             val nextActive = !it.isBacklitCompensationActive
-            // If active, boost exposure by +2 steps within limit
             val newIndex = if (nextActive) {
                 (it.exposureIndex + 2).coerceAtMost(it.maxExposureIndex)
             } else {
@@ -165,14 +235,12 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.update { it.copy(saveBothOriginalAndEnhanced = !it.saveBothOriginalAndEnhanced) }
     }
 
-    fun setHardwareCapabilities(manualSensor: Boolean, hdrSupported: Boolean, nightSupported: Boolean) {
-        _uiState.update {
-            it.copy(
-                hasManualSensorSupport = manualSensor,
-                isHardwareHdrSupported = hdrSupported,
-                isHardwareNightSupported = nightSupported
-            )
-        }
+    fun toggleRawCapture() {
+        _uiState.update { it.copy(rawCaptureEnabled = !it.rawCaptureEnabled) }
+    }
+
+    fun setAspectRatio(ratio: AspectRatioSetting) {
+        _uiState.update { it.copy(aspectRatioSetting = ratio) }
     }
 
     fun toggleWatermark() {
@@ -187,9 +255,6 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    /**
-     * Prepares capture, coordinating screen flash and countdown timers.
-     */
     fun initiateCapture(
         onPrepareScreenFlash: (Boolean) -> Unit,
         onExecuteCapture: () -> Unit
@@ -223,14 +288,12 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         if (needScreenFlash) {
             screenFlashJob?.cancel()
             screenFlashJob = viewModelScope.launch {
-                // 1. Activate full-screen illumination & max window brightness
                 _uiState.update { it.copy(isScreenFlashActive = true) }
                 onPrepareScreenFlash(true)
 
-                // 2. Pre-flash illumination warmup (350ms) to allow front AE/AWB to adapt smoothly
+                // 350ms pre-flash warmup for front camera exposure adaptation
                 delay(350)
 
-                // 3. Trigger CameraX ImageCapture during peak illumination
                 onExecuteCapture()
             }
         } else {
@@ -262,7 +325,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                 var processedBmp = originalBmp
                 var processingTime = 0L
 
-                // 1. Image Quality Pipeline Enhancement
+                // 1. Computational Photography Pipeline Enhancement
                 if (_uiState.value.isQualityEnhanceEnabled) {
                     val enhancement = ImageQualityEnhancer.enhance(
                         source = originalBmp,
@@ -285,7 +348,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                     processedBmp
                 }
 
-                // Optional: Save original photo separately if configured
+                // Save original if dual-save configured
                 if (_uiState.value.saveBothOriginalAndEnhanced && _uiState.value.isQualityEnhanceEnabled) {
                     MediaSaver.saveBitmapToGallery(
                         context = getApplication(),
@@ -296,18 +359,25 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                     )
                 }
 
-                // Save primary result
+                val modePrefix = when (_uiState.value.captureMode) {
+                    CaptureMode.PORTRAIT -> "WAFA_PORTRAIT"
+                    CaptureMode.NIGHT -> "WAFA_NIGHT"
+                    CaptureMode.HDR -> "WAFA_HDR"
+                    CaptureMode.PRO -> "WAFA_PRO"
+                    else -> "WAFA_IMG"
+                }
+
                 val saveResult = MediaSaver.saveBitmapToGallery(
                     context = getApplication(),
                     bitmap = finalBmp,
-                    titlePrefix = "WAFA_PRO",
+                    titlePrefix = modePrefix,
                     format = Bitmap.CompressFormat.JPEG,
                     quality = 95
                 )
 
                 saveResult.onSuccess { uri ->
                     val statusMsg = if (processingTime > 0) {
-                        "Photo saved! (Enhanced in ${processingTime}ms)"
+                        "Photo saved! (${processingTime}ms)"
                     } else {
                         "Photo saved to Gallery!"
                     }

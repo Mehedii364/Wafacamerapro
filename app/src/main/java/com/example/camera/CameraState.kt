@@ -2,12 +2,16 @@ package com.example.camera
 
 import android.net.Uri
 import androidx.camera.core.CameraSelector
+import com.example.core.compatibility.LensCapabilities
 import com.example.imageprocessing.QualityPreset
 
 enum class CaptureMode {
     PHOTO,
+    PORTRAIT,
+    NIGHT,
+    HDR,
     VIDEO,
-    PRO_MANUAL
+    PRO
 }
 
 enum class GridType {
@@ -36,6 +40,12 @@ enum class ScreenFlashTone {
     COOL_BRIGHT
 }
 
+enum class AspectRatioSetting {
+    RATIO_4_3,
+    RATIO_16_9,
+    RATIO_1_1
+}
+
 data class CameraUiState(
     val captureMode: CaptureMode = CaptureMode.PHOTO,
     val lensFacing: Int = CameraSelector.LENS_FACING_BACK,
@@ -51,6 +61,7 @@ data class CameraUiState(
     val zoomRatio: Float = 1.0f,
     val minZoomRatio: Float = 1.0f,
     val maxZoomRatio: Float = 8.0f,
+    val isZoomSliderVisible: Boolean = false,
     val exposureIndex: Int = 0,
     val minExposureIndex: Int = -4,
     val maxExposureIndex: Int = 4,
@@ -60,11 +71,14 @@ data class CameraUiState(
     val qualityPreset: QualityPreset = QualityPreset.NATURAL,
     val isQualityEnhanceEnabled: Boolean = true,
     val saveBothOriginalAndEnhanced: Boolean = false,
+    val rawCaptureEnabled: Boolean = false,
+    val aspectRatioSetting: AspectRatioSetting = AspectRatioSetting.RATIO_4_3,
     val lastProcessingTimeMs: Long = 0L,
     val isProMode: Boolean = false,
     val hasManualSensorSupport: Boolean = false,
-    val isHardwareHdrSupported: Boolean = false,
-    val isHardwareNightSupported: Boolean = false,
+    val hasFlashUnit: Boolean = true,
+    val supportedExtensions: List<String> = emptyList(),
+    val activeExtensionName: String? = null,
     val isRecordingVideo: Boolean = false,
     val isVideoPaused: Boolean = false,
     val videoDurationSeconds: Long = 0L,
@@ -74,5 +88,6 @@ data class CameraUiState(
     val statusMessage: String? = null,
     val focusRingPosition: Pair<Float, Float>? = null,
     val isFocusRingVisible: Boolean = false,
-    val watermarkEnabled: Boolean = true
+    val watermarkEnabled: Boolean = true,
+    val currentLensCapabilities: LensCapabilities? = null
 )

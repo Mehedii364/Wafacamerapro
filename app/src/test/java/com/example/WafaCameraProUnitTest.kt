@@ -41,11 +41,12 @@ class WafaCameraProUnitTest {
     @Test
     fun qualityPresets_enum_containsAllPresets() {
         val presets = com.example.imageprocessing.QualityPreset.values()
-        assertEquals(4, presets.size)
+        assertEquals(5, presets.size)
         assertTrue(presets.contains(com.example.imageprocessing.QualityPreset.NATURAL))
         assertTrue(presets.contains(com.example.imageprocessing.QualityPreset.DETAIL))
         assertTrue(presets.contains(com.example.imageprocessing.QualityPreset.LOW_LIGHT))
         assertTrue(presets.contains(com.example.imageprocessing.QualityPreset.HDR_STYLE))
+        assertTrue(presets.contains(com.example.imageprocessing.QualityPreset.PORTRAIT_BOKEH))
     }
 
     @Test
