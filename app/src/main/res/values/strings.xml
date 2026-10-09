@@ -37,6 +37,21 @@
     <string name="flash_on">Flash On</string>
     <string name="flash_off">Flash Off</string>
     <string name="flash_torch">Torch</string>
+    <string name="screen_flash_title">Smart Screen Flash</string>
+    <string name="screen_flash_desc">Display Illumination (Not hardware LED)</string>
+    <string name="screen_flash_auto">Screen Flash: Auto</string>
+    <string name="screen_flash_on">Screen Flash: On</string>
+    <string name="screen_flash_off">Screen Flash: Off</string>
+    <string name="ev_reset">Reset EV</string>
+    <string name="ae_lock">AE Lock</string>
+    <string name="backlit_boost">Backlit Boost</string>
+    <string name="quality_preset_title">Quality Presets</string>
+    <string name="preset_natural">Natural Skin</string>
+    <string name="preset_detail">Detail Sharpen</string>
+    <string name="preset_low_light">Night Denoise</string>
+    <string name="preset_hdr">HDR Dynamic</string>
+    <string name="pro_mode_label">Pro Mode</string>
+    <string name="simple_mode_label">Simple Mode</string>
 
     <!-- Scanner -->
     <string name="scanner_title">Document Scanner</string>

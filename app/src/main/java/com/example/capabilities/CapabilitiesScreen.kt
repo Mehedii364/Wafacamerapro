@@ -61,6 +61,30 @@ fun CapabilitiesScreen(
             )
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = "Smart Screen Flash: Display Illumination",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Front camera uses full-screen white display illumination for soft, natural selfie lighting (not hardware LED). Compatible with OPPO Reno13 F 4G and all standard Android devices.",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 11.sp
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         if (cameras.isEmpty()) {

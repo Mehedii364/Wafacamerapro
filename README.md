@@ -17,6 +17,14 @@ No cloud account or remote backend is required. All media, documents, and proces
 
 ### 1. Camera Engine (CameraX + Camera2)
 - **High-Definition Photography:** Lens switching (Rear/Front), auto/manual exposure compensation, pinch-to-zoom, grid overlays (Rule of Thirds, Golden Ratio, Cross), capture timer (3s, 5s, 10s), and real-time capture feedback.
+- **Smart Front Screen Flash:** Full-screen soft display illumination for natural selfie lighting without harsh shadows. Includes Auto, On, and Off modes, configurable tone (Neutral White, Warm Soft, Cool Bright), 350ms pre-flash sensor warmup, and safe window brightness restoration upon capture, error, or cancellation.
+- **Advanced Exposure Engine:** Live EV compensation slider across the device's actual supported range, instant Reset EV button, AE Lock, and Backlit Boost to protect highlights and rescue dark portraits.
+- **Image Quality Pipeline:** On-device non-destructive quality presets:
+  - *Natural Skin:* Faithful skin tones and soft contrast.
+  - *Detail Sharpen:* Halos-free unsharp masking preserving hair and fine textures.
+  - *Night Denoise:* Low-light chroma noise suppression and shadow illumination.
+  - *HDR Dynamic:* Multi-tone curve recovering shadows while smoothly compressing highlights.
+- **Pro & Simple Modes:** One-tap toggle between clean point-and-shoot and advanced manual photographic controls.
 - **Video Recording:** CameraX `VideoCapture` with start/pause/resume/stop controls, live duration timer, and audio recording toggle.
 - **Torch & Flash:** Full support for Auto, On, Off, and continuous Torch flashlight modes.
 - **Physical Volume Button Shutter:** Support for triggering photo capture via device volume keys.

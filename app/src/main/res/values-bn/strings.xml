@@ -37,6 +37,21 @@
     <string name="flash_on">ফ্ল্যাশ চালু</string>
     <string name="flash_off">ফ্ল্যাশ বন্ধ</string>
     <string name="flash_torch">টর্চ</string>
+    <string name="screen_flash_title">স্মার্ট স্ক্রিন ফ্ল্যাশ</string>
+    <string name="screen_flash_desc">ডিসপ্লে আলো (হার্ডওয়্যার LED নয়)</string>
+    <string name="screen_flash_auto">স্ক্রিন ফ্ল্যাশ: অটো</string>
+    <string name="screen_flash_on">স্ক্রিন ফ্ল্যাশ: চালু</string>
+    <string name="screen_flash_off">স্ক্রিন ফ্ল্যাশ: বন্ধ</string>
+    <string name="ev_reset">রিসেট EV</string>
+    <string name="ae_lock">AE লক</string>
+    <string name="backlit_boost">ব্যাকলিট বুস্ট</string>
+    <string name="quality_preset_title">কোয়ালিটি প্রিসেট</string>
+    <string name="preset_natural">স্বাভাবিক ত্বক</string>
+    <string name="preset_detail">ডিটেইল শার্প</string>
+    <string name="preset_low_light">নাইট ডিনয়েজ</string>
+    <string name="preset_hdr">HDR ডায়নামিক</string>
+    <string name="pro_mode_label">প্রো মোড</string>
+    <string name="simple_mode_label">সহজ মোড</string>
 
     <!-- Scanner -->
     <string name="scanner_title">ডকুমেন্ট স্ক্যানার</string>

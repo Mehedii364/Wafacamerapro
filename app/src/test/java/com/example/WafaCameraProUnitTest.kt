@@ -22,6 +22,30 @@ class WafaCameraProUnitTest {
         assertFalse(state.isCountingDown)
         assertFalse(state.isRecordingVideo)
         assertTrue(state.watermarkEnabled)
+        assertEquals(com.example.camera.ScreenFlashMode.AUTO, state.screenFlashMode)
+        assertEquals(com.example.imageprocessing.QualityPreset.NATURAL, state.qualityPreset)
+        assertEquals(1.0f, state.screenFlashBrightness, 0.01f)
+        assertFalse(state.isAeLocked)
+        assertFalse(state.isScreenFlashActive)
+    }
+
+    @Test
+    fun screenFlashTone_enum_containsAllTones() {
+        val tones = com.example.camera.ScreenFlashTone.values()
+        assertEquals(3, tones.size)
+        assertTrue(tones.contains(com.example.camera.ScreenFlashTone.NEUTRAL_WHITE))
+        assertTrue(tones.contains(com.example.camera.ScreenFlashTone.WARM_SOFT))
+        assertTrue(tones.contains(com.example.camera.ScreenFlashTone.COOL_BRIGHT))
+    }
+
+    @Test
+    fun qualityPresets_enum_containsAllPresets() {
+        val presets = com.example.imageprocessing.QualityPreset.values()
+        assertEquals(4, presets.size)
+        assertTrue(presets.contains(com.example.imageprocessing.QualityPreset.NATURAL))
+        assertTrue(presets.contains(com.example.imageprocessing.QualityPreset.DETAIL))
+        assertTrue(presets.contains(com.example.imageprocessing.QualityPreset.LOW_LIGHT))
+        assertTrue(presets.contains(com.example.imageprocessing.QualityPreset.HDR_STYLE))
     }
 
     @Test

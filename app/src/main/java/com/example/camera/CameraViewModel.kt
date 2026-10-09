@@ -9,6 +9,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.core.storage.MediaSaver
 import com.example.data.database.WafaDatabase
+import com.example.imageprocessing.ImageQualityEnhancer
+import com.example.imageprocessing.QualityPreset
 import com.example.imageprocessing.WatermarkRenderer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -25,11 +27,16 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
 
     private var countdownJob: Job? = null
     private var videoDurationJob: Job? = null
+    private var screenFlashJob: Job? = null
 
     private val db = WafaDatabase.getInstance(application)
 
     fun setCaptureMode(mode: CaptureMode) {
         _uiState.update { it.copy(captureMode = mode) }
+    }
+
+    fun setProMode(isPro: Boolean) {
+        _uiState.update { it.copy(isProMode = isPro) }
     }
 
     fun toggleLensFacing() {
@@ -39,11 +46,19 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
             } else {
                 CameraSelector.LENS_FACING_BACK
             }
-            it.copy(lensFacing = nextFacing, zoomRatio = 1.0f)
+            it.copy(
+                lensFacing = nextFacing,
+                zoomRatio = 1.0f,
+                isScreenFlashActive = false
+            )
         }
     }
 
     fun cycleFlash() {
+        if (_uiState.value.lensFacing == CameraSelector.LENS_FACING_FRONT) {
+            cycleScreenFlash()
+            return
+        }
         _uiState.update {
             val next = when (it.flashSetting) {
                 FlashSetting.AUTO -> FlashSetting.ON
@@ -53,6 +68,25 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
             }
             it.copy(flashSetting = next)
         }
+    }
+
+    fun cycleScreenFlash() {
+        _uiState.update {
+            val next = when (it.screenFlashMode) {
+                ScreenFlashMode.AUTO -> ScreenFlashMode.ON
+                ScreenFlashMode.ON -> ScreenFlashMode.OFF
+                ScreenFlashMode.OFF -> ScreenFlashMode.AUTO
+            }
+            it.copy(screenFlashMode = next)
+        }
+    }
+
+    fun setScreenFlashTone(tone: ScreenFlashTone) {
+        _uiState.update { it.copy(screenFlashTone = tone) }
+    }
+
+    fun setScreenFlashBrightness(brightness: Float) {
+        _uiState.update { it.copy(screenFlashBrightness = brightness.coerceIn(0.5f, 1.0f)) }
     }
 
     fun cycleGrid() {
@@ -89,9 +123,55 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun resetExposureToZero() {
+        _uiState.update { it.copy(exposureIndex = 0, isBacklitCompensationActive = false) }
+    }
+
+    fun toggleAeLock() {
+        _uiState.update { it.copy(isAeLocked = !it.isAeLocked) }
+    }
+
+    fun toggleBacklitCompensation() {
+        _uiState.update {
+            val nextActive = !it.isBacklitCompensationActive
+            // If active, boost exposure by +2 steps within limit
+            val newIndex = if (nextActive) {
+                (it.exposureIndex + 2).coerceAtMost(it.maxExposureIndex)
+            } else {
+                0
+            }
+            it.copy(
+                isBacklitCompensationActive = nextActive,
+                exposureIndex = newIndex
+            )
+        }
+    }
+
     fun updateExposureBounds(min: Int, max: Int, step: Float) {
         _uiState.update {
             it.copy(minExposureIndex = min, maxExposureIndex = max, exposureStep = step)
+        }
+    }
+
+    fun setQualityPreset(preset: QualityPreset) {
+        _uiState.update { it.copy(qualityPreset = preset) }
+    }
+
+    fun toggleQualityEnhancement() {
+        _uiState.update { it.copy(isQualityEnhanceEnabled = !it.isQualityEnhanceEnabled) }
+    }
+
+    fun toggleSaveBothOriginalAndEnhanced() {
+        _uiState.update { it.copy(saveBothOriginalAndEnhanced = !it.saveBothOriginalAndEnhanced) }
+    }
+
+    fun setHardwareCapabilities(manualSensor: Boolean, hdrSupported: Boolean, nightSupported: Boolean) {
+        _uiState.update {
+            it.copy(
+                hasManualSensorSupport = manualSensor,
+                isHardwareHdrSupported = hdrSupported,
+                isHardwareNightSupported = nightSupported
+            )
         }
     }
 
@@ -107,23 +187,61 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun initiateCapture(onExecuteCapture: () -> Unit) {
-        val timerSec = _uiState.value.timerSeconds
-        if (timerSec <= 0) {
-            onExecuteCapture()
-            return
-        }
+    /**
+     * Prepares capture, coordinating screen flash and countdown timers.
+     */
+    fun initiateCapture(
+        onPrepareScreenFlash: (Boolean) -> Unit,
+        onExecuteCapture: () -> Unit
+    ) {
+        val isFrontCamera = _uiState.value.lensFacing == CameraSelector.LENS_FACING_FRONT
+        val needScreenFlash = isFrontCamera && _uiState.value.screenFlashMode != ScreenFlashMode.OFF
 
-        countdownJob?.cancel()
-        countdownJob = viewModelScope.launch {
-            _uiState.update { it.copy(isCountingDown = true, countdownRemaining = timerSec) }
-            for (sec in timerSec downTo 1) {
-                _uiState.update { it.copy(countdownRemaining = sec) }
-                delay(1000)
+        val timerSec = _uiState.value.timerSeconds
+        if (timerSec > 0) {
+            countdownJob?.cancel()
+            countdownJob = viewModelScope.launch {
+                _uiState.update { it.copy(isCountingDown = true, countdownRemaining = timerSec) }
+                for (sec in timerSec downTo 1) {
+                    _uiState.update { it.copy(countdownRemaining = sec) }
+                    delay(1000)
+                }
+                _uiState.update { it.copy(isCountingDown = false, countdownRemaining = 0) }
+
+                executeCaptureWithScreenFlash(needScreenFlash, onPrepareScreenFlash, onExecuteCapture)
             }
-            _uiState.update { it.copy(isCountingDown = false, countdownRemaining = 0) }
+        } else {
+            executeCaptureWithScreenFlash(needScreenFlash, onPrepareScreenFlash, onExecuteCapture)
+        }
+    }
+
+    private fun executeCaptureWithScreenFlash(
+        needScreenFlash: Boolean,
+        onPrepareScreenFlash: (Boolean) -> Unit,
+        onExecuteCapture: () -> Unit
+    ) {
+        if (needScreenFlash) {
+            screenFlashJob?.cancel()
+            screenFlashJob = viewModelScope.launch {
+                // 1. Activate full-screen illumination & max window brightness
+                _uiState.update { it.copy(isScreenFlashActive = true) }
+                onPrepareScreenFlash(true)
+
+                // 2. Pre-flash illumination warmup (350ms) to allow front AE/AWB to adapt smoothly
+                delay(350)
+
+                // 3. Trigger CameraX ImageCapture during peak illumination
+                onExecuteCapture()
+            }
+        } else {
             onExecuteCapture()
         }
+    }
+
+    fun dismissScreenFlash(onRestoreBrightness: () -> Unit) {
+        screenFlashJob?.cancel()
+        _uiState.update { it.copy(isScreenFlashActive = false) }
+        onRestoreBrightness()
     }
 
     fun cancelCountdown() {
@@ -133,7 +251,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
 
     fun processCapturedPhotoBytes(jpegBytes: ByteArray) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isCapturing = true, statusMessage = "Processing & Saving...") }
+            _uiState.update { it.copy(isCapturing = true, statusMessage = "Processing & Enhancing...") }
             try {
                 val originalBmp = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
                 if (originalBmp == null) {
@@ -141,17 +259,44 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                     return@launch
                 }
 
+                var processedBmp = originalBmp
+                var processingTime = 0L
+
+                // 1. Image Quality Pipeline Enhancement
+                if (_uiState.value.isQualityEnhanceEnabled) {
+                    val enhancement = ImageQualityEnhancer.enhance(
+                        source = originalBmp,
+                        preset = _uiState.value.qualityPreset
+                    )
+                    processedBmp = enhancement.enhancedBitmap
+                    processingTime = enhancement.processingTimeMs
+                    _uiState.update { it.copy(lastProcessingTimeMs = processingTime) }
+                }
+
+                // 2. Watermark Application
                 val finalBmp = if (_uiState.value.watermarkEnabled) {
                     WatermarkRenderer.applyWatermark(
-                        src = originalBmp,
+                        src = processedBmp,
                         text = "Developed by Mehedi364 • Wafa Camera Pro",
                         position = "BOTTOM_RIGHT",
                         includeTimestamp = true
                     )
                 } else {
-                    originalBmp
+                    processedBmp
                 }
 
+                // Optional: Save original photo separately if configured
+                if (_uiState.value.saveBothOriginalAndEnhanced && _uiState.value.isQualityEnhanceEnabled) {
+                    MediaSaver.saveBitmapToGallery(
+                        context = getApplication(),
+                        bitmap = originalBmp,
+                        titlePrefix = "WAFA_RAW",
+                        format = Bitmap.CompressFormat.JPEG,
+                        quality = 95
+                    )
+                }
+
+                // Save primary result
                 val saveResult = MediaSaver.saveBitmapToGallery(
                     context = getApplication(),
                     bitmap = finalBmp,
@@ -161,11 +306,16 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                 )
 
                 saveResult.onSuccess { uri ->
+                    val statusMsg = if (processingTime > 0) {
+                        "Photo saved! (Enhanced in ${processingTime}ms)"
+                    } else {
+                        "Photo saved to Gallery!"
+                    }
                     _uiState.update {
                         it.copy(
                             isCapturing = false,
                             lastCapturedThumbnailUri = uri,
-                            statusMessage = "Photo saved to Gallery!"
+                            statusMessage = statusMsg
                         )
                     }
                 }.onFailure { err ->
@@ -182,7 +332,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
 
-            delay(2500)
+            delay(2800)
             _uiState.update { it.copy(statusMessage = null) }
         }
     }

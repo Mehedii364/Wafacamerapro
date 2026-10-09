@@ -2,18 +2,17 @@ package com.example.camera
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Color as AndroidColor
 import android.os.Build
 import android.provider.MediaStore
 import android.view.ViewGroup
+import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
-import androidx.camera.core.CameraControl
-import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
@@ -37,7 +36,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +50,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.material.icons.filled.FiberManualRecord
@@ -59,14 +58,23 @@ import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.HdrOn
 import androidx.compose.material.icons.filled.Highlight
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Nightlight
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -81,18 +89,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,8 +109,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asExecutor
+import com.example.imageprocessing.QualityPreset
 import java.nio.ByteBuffer
 
 @Composable
@@ -112,7 +120,29 @@ fun CameraScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val haptic = LocalHapticFeedback.current
     val uiState by viewModel.uiState.collectAsState()
+
+    val activity = context as? Activity
+    val originalBrightness = remember {
+        activity?.window?.attributes?.screenBrightness ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+    }
+
+    val setWindowBrightness: (Float) -> Unit = { brightness ->
+        activity?.let { act ->
+            val lp = act.window.attributes
+            lp.screenBrightness = brightness
+            act.window.attributes = lp
+        }
+    }
+
+    val restoreWindowBrightness: () -> Unit = {
+        activity?.let { act ->
+            val lp = act.window.attributes
+            lp.screenBrightness = originalBrightness
+            act.window.attributes = lp
+        }
+    }
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -191,7 +221,7 @@ fun CameraScreen(
     var activeRecording by remember { mutableStateOf<Recording?>(null) }
 
     var showExposureSlider by remember { mutableStateOf(false) }
-    var showZoomSlider by remember { mutableStateOf(false) }
+    var showQualityDrawer by remember { mutableStateOf(false) }
 
     // Bind Camera lifecycle
     LaunchedEffect(uiState.lensFacing, uiState.captureMode) {
@@ -209,15 +239,19 @@ fun CameraScreen(
                     previewView?.let { pv -> it.setSurfaceProvider(pv.surfaceProvider) }
                 }
 
+                val flashModeToUse = if (uiState.lensFacing == CameraSelector.LENS_FACING_FRONT) {
+                    ImageCapture.FLASH_MODE_OFF
+                } else {
+                    when (uiState.flashSetting) {
+                        FlashSetting.ON -> ImageCapture.FLASH_MODE_ON
+                        FlashSetting.AUTO -> ImageCapture.FLASH_MODE_AUTO
+                        else -> ImageCapture.FLASH_MODE_OFF
+                    }
+                }
+
                 val imgCap = ImageCapture.Builder()
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
-                    .setFlashMode(
-                        when (uiState.flashSetting) {
-                            FlashSetting.ON -> ImageCapture.FLASH_MODE_ON
-                            FlashSetting.AUTO -> ImageCapture.FLASH_MODE_AUTO
-                            else -> ImageCapture.FLASH_MODE_OFF
-                        }
-                    )
+                    .setFlashMode(flashModeToUse)
                     .build()
                 imageCapture = imgCap
 
@@ -252,9 +286,13 @@ fun CameraScreen(
         }, ContextCompat.getMainExecutor(context))
     }
 
-    // Handle Torch
-    LaunchedEffect(uiState.flashSetting, activeCamera) {
-        activeCamera?.cameraControl?.enableTorch(uiState.flashSetting == FlashSetting.TORCH)
+    // Handle Torch (only for rear camera)
+    LaunchedEffect(uiState.flashSetting, activeCamera, uiState.lensFacing) {
+        if (uiState.lensFacing == CameraSelector.LENS_FACING_BACK) {
+            activeCamera?.cameraControl?.enableTorch(uiState.flashSetting == FlashSetting.TORCH)
+        } else {
+            activeCamera?.cameraControl?.enableTorch(false)
+        }
     }
 
     // Handle Zoom
@@ -267,12 +305,15 @@ fun CameraScreen(
         activeCamera?.cameraControl?.setExposureCompensationIndex(uiState.exposureIndex)
     }
 
-    // Clean up active recording when leaving
+    // Clean up active recording & restore window brightness when leaving
     DisposableEffect(Unit) {
         onDispose {
             activeRecording?.stop()
+            restoreWindowBrightness()
         }
     }
+
+    val isFrontCamera = uiState.lensFacing == CameraSelector.LENS_FACING_FRONT
 
     Box(
         modifier = modifier
@@ -316,10 +357,8 @@ fun CameraScreen(
 
                 when (uiState.gridType) {
                     GridType.RULE_OF_THIRDS -> {
-                        // Vertical lines
                         drawLine(strokeColor, Offset(w / 3f, 0f), Offset(w / 3f, h), strokeWidth = 1.dp.toPx())
                         drawLine(strokeColor, Offset(2 * w / 3f, 0f), Offset(2 * w / 3f, h), strokeWidth = 1.dp.toPx())
-                        // Horizontal lines
                         drawLine(strokeColor, Offset(0f, h / 3f), Offset(w, h / 3f), strokeWidth = 1.dp.toPx())
                         drawLine(strokeColor, Offset(0f, 2 * h / 3f), Offset(w, 2 * h / 3f), strokeWidth = 1.dp.toPx())
                     }
@@ -354,146 +393,259 @@ fun CameraScreen(
             }
         }
 
-        // 4. Top HUD Bar
-        Row(
+        // 4. SMART FRONT SCREEN FLASH ILLUMINATION OVERLAY
+        if (uiState.isScreenFlashActive) {
+            val flashColor = when (uiState.screenFlashTone) {
+                ScreenFlashTone.NEUTRAL_WHITE -> Color(0xFFFFFDF8)
+                ScreenFlashTone.WARM_SOFT -> Color(0xFFFFF4E5)
+                ScreenFlashTone.COOL_BRIGHT -> Color(0xFFF0F8FF)
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(flashColor)
+                    .clickable {
+                        viewModel.dismissScreenFlash(restoreWindowBrightness)
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.LightMode,
+                        contentDescription = null,
+                        tint = Color(0xFF2C3E50),
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "⚡ Display Screen Flash Active",
+                        color = Color(0xFF1E2638),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 18.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Illuminating face for balanced soft selfie exposure",
+                        color = Color(0xFF5A6B82),
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF131926).copy(alpha = 0.08f)
+                    ) {
+                        Text(
+                            text = "Tap to cancel",
+                            color = Color(0xFF334155),
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 5. Top HUD Bar
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 40.dp, start = 16.dp, end = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .align(Alignment.TopCenter)
+                .padding(top = 40.dp, start = 12.dp, end = 12.dp)
         ) {
-            // Flash Mode
-            IconButton(
-                onClick = { viewModel.cycleFlash() },
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                    .size(42.dp)
-                    .testTag("flash_button")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = when (uiState.flashSetting) {
-                        FlashSetting.AUTO -> Icons.Default.FlashAuto
-                        FlashSetting.ON -> Icons.Default.FlashOn
-                        FlashSetting.TORCH -> Icons.Default.Highlight
-                        FlashSetting.OFF -> Icons.Default.FlashOff
+                // Flash Button: Hardware Flash (Rear) vs Screen Flash (Front)
+                IconButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        viewModel.cycleFlash()
                     },
-                    contentDescription = "Flash Setting",
-                    tint = if (uiState.flashSetting != FlashSetting.OFF) Color(0xFFFFB300) else Color.White
-                )
-            }
-
-            // Timer Button
-            IconButton(
-                onClick = {
-                    val nextTimer = when (uiState.timerSeconds) {
-                        0 -> 3
-                        3 -> 5
-                        5 -> 10
-                        else -> 0
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                        .size(42.dp)
+                        .testTag("flash_button")
+                ) {
+                    if (isFrontCamera) {
+                        Icon(
+                            imageVector = when (uiState.screenFlashMode) {
+                                ScreenFlashMode.AUTO -> Icons.Default.FlashAuto
+                                ScreenFlashMode.ON -> Icons.Default.LightMode
+                                ScreenFlashMode.OFF -> Icons.Default.FlashOff
+                            },
+                            contentDescription = "Screen Flash",
+                            tint = if (uiState.screenFlashMode != ScreenFlashMode.OFF) Color(0xFFFFB300) else Color.White
+                        )
+                    } else {
+                        Icon(
+                            imageVector = when (uiState.flashSetting) {
+                                FlashSetting.AUTO -> Icons.Default.FlashAuto
+                                FlashSetting.ON -> Icons.Default.FlashOn
+                                FlashSetting.TORCH -> Icons.Default.Highlight
+                                FlashSetting.OFF -> Icons.Default.FlashOff
+                            },
+                            contentDescription = "Flash Setting",
+                            tint = if (uiState.flashSetting != FlashSetting.OFF) Color(0xFFFFB300) else Color.White
+                        )
                     }
-                    viewModel.setTimer(nextTimer)
-                },
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                    .size(42.dp)
-                    .testTag("timer_button")
-            ) {
-                Box(contentAlignment = Alignment.Center) {
+                }
+
+                // Timer Button
+                IconButton(
+                    onClick = {
+                        val nextTimer = when (uiState.timerSeconds) {
+                            0 -> 3
+                            3 -> 5
+                            5 -> 10
+                            else -> 0
+                        }
+                        viewModel.setTimer(nextTimer)
+                    },
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                        .size(42.dp)
+                        .testTag("timer_button")
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = "Timer",
+                            tint = if (uiState.timerSeconds > 0) Color(0xFF00E5FF) else Color.White
+                        )
+                        if (uiState.timerSeconds > 0) {
+                            Text(
+                                text = "${uiState.timerSeconds}s",
+                                color = Color(0xFF00E5FF),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 16.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Grid Button
+                IconButton(
+                    onClick = { viewModel.cycleGrid() },
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                        .size(42.dp)
+                        .testTag("grid_button")
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = "Timer",
-                        tint = if (uiState.timerSeconds > 0) Color(0xFF00E5FF) else Color.White
+                        imageVector = Icons.Default.GridOn,
+                        contentDescription = "Grid",
+                        tint = if (uiState.gridType != GridType.NONE) Color(0xFF00E5FF) else Color.White
                     )
-                    if (uiState.timerSeconds > 0) {
+                }
+
+                // Exposure (EV) Toggle
+                IconButton(
+                    onClick = {
+                        showExposureSlider = !showExposureSlider
+                        if (showExposureSlider) showQualityDrawer = false
+                    },
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                        .size(42.dp)
+                        .testTag("exposure_toggle")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Brightness6,
+                        contentDescription = "Exposure",
+                        tint = if (showExposureSlider || uiState.exposureIndex != 0) Color(0xFF00E5FF) else Color.White
+                    )
+                }
+
+                // Quality Presets / Studio Pipeline Toggle
+                IconButton(
+                    onClick = {
+                        showQualityDrawer = !showQualityDrawer
+                        if (showQualityDrawer) showExposureSlider = false
+                    },
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                        .size(42.dp)
+                        .testTag("quality_toggle")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = "Quality Pipeline",
+                        tint = if (showQualityDrawer || uiState.isQualityEnhanceEnabled) Color(0xFF00E676) else Color.White
+                    )
+                }
+
+                // Pro Mode Switcher Badge
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (uiState.isProMode) Color(0xFF00E5FF).copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (uiState.isProMode) Color(0xFF00E5FF) else Color.Gray),
+                    modifier = Modifier.clickable { viewModel.setProMode(!uiState.isProMode) }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = null,
+                            tint = if (uiState.isProMode) Color(0xFF00E5FF) else Color.Gray,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "${uiState.timerSeconds}s",
-                            color = Color(0xFF00E5FF),
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 16.dp)
+                            text = if (uiState.isProMode) "PRO" else "AUTO",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
 
-            // Grid Button
-            IconButton(
-                onClick = { viewModel.cycleGrid() },
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                    .size(42.dp)
-                    .testTag("grid_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.GridOn,
-                    contentDescription = "Grid",
-                    tint = if (uiState.gridType != GridType.NONE) Color(0xFF00E5FF) else Color.White
-                )
-            }
-
-            // Exposure Slider Toggle
-            IconButton(
-                onClick = {
-                    showExposureSlider = !showExposureSlider
-                    if (showExposureSlider) showZoomSlider = false
-                },
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                    .size(42.dp)
-                    .testTag("exposure_toggle")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Brightness6,
-                    contentDescription = "Exposure",
-                    tint = if (showExposureSlider) Color(0xFF00E5FF) else Color.White
-                )
-            }
-
-            // Watermark Toggle Badge
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (uiState.watermarkEnabled) Color(0xFF00E5FF).copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.4f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (uiState.watermarkEnabled) Color(0xFF00E5FF) else Color.Gray),
-                modifier = Modifier.clickable { viewModel.toggleWatermark() }
-            ) {
+            // Front Screen Flash indicator notice
+            if (isFrontCamera && uiState.screenFlashMode != ScreenFlashMode.OFF) {
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                    modifier = Modifier
+                        .background(Color(0xFF131926).copy(alpha = 0.85f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = null,
-                        tint = if (uiState.watermarkEnabled) Color(0xFF00E5FF) else Color.Gray,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.LightMode, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (uiState.watermarkEnabled) "Stamp ON" else "Stamp OFF",
+                        text = "Screen Flash: Display Illumination (${if (uiState.screenFlashMode == ScreenFlashMode.AUTO) "Auto" else "On"})",
                         color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontSize = 11.sp
                     )
                 }
             }
         }
 
-        // 5. Exposure & Zoom Sliders (Right side / floating)
+        // 6. Advanced Exposure Floating Panel
         if (showExposureSlider) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(end = 16.dp)
-                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 12.dp, vertical = 16.dp)
+                    .padding(end = 12.dp)
+                    .background(Color(0xFF090D16).copy(alpha = 0.9f), RoundedCornerShape(18.dp))
+                    .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                    .padding(horizontal = 14.dp, vertical = 14.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     val evVal = uiState.exposureIndex * uiState.exposureStep
                     Text(
                         text = "EV: %+.1f".format(evVal),
                         color = Color(0xFF00E5FF),
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
                     Slider(
                         value = uiState.exposureIndex.toFloat(),
                         onValueChange = { viewModel.setExposureIndex(it.toInt()) },
@@ -504,14 +656,185 @@ fun CameraScreen(
                             activeTrackColor = Color(0xFF00E5FF)
                         ),
                         modifier = Modifier
-                            .height(180.dp)
+                            .height(170.dp)
                             .width(36.dp)
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Reset EV Button
+                    IconButton(
+                        onClick = { viewModel.resetExposureToZero() },
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(Color(0xFF1E2638), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RestartAlt,
+                            contentDescription = "Reset EV",
+                            tint = Color(0xFF00E5FF),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // AE Lock Toggle
+                    IconButton(
+                        onClick = { viewModel.toggleAeLock() },
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(if (uiState.isAeLocked) Color(0xFFFFB300) else Color(0xFF1E2638), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.isAeLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                            contentDescription = "AE Lock",
+                            tint = if (uiState.isAeLocked) Color.Black else Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Backlit Portrait Boost
+                    IconButton(
+                        onClick = { viewModel.toggleBacklitCompensation() },
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(if (uiState.isBacklitCompensationActive) Color(0xFF00E676) else Color(0xFF1E2638), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WbSunny,
+                            contentDescription = "Backlit Boost",
+                            tint = if (uiState.isBacklitCompensationActive) Color.Black else Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
 
-        // 6. Zoom Controls Pill (Bottom Center above shutter)
+        // 7. Image Quality Pipeline Drawer
+        if (showQualityDrawer) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 12.dp)
+                    .background(Color(0xFF090D16).copy(alpha = 0.92f), RoundedCornerShape(18.dp))
+                    .border(1.dp, Color(0xFF00E676).copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                    .padding(14.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.Start) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(0.55f),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Quality Engine",
+                            color = Color(0xFF00E676),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (uiState.isQualityEnhanceEnabled) Color(0xFF00E676).copy(alpha = 0.2f) else Color.Gray.copy(alpha = 0.2f),
+                            modifier = Modifier.clickable { viewModel.toggleQualityEnhancement() }
+                        ) {
+                            Text(
+                                text = if (uiState.isQualityEnhanceEnabled) "ON" else "OFF",
+                                color = if (uiState.isQualityEnhanceEnabled) Color(0xFF00E676) else Color.Gray,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    listOf(
+                        QualityPreset.NATURAL to "Natural Skin",
+                        QualityPreset.DETAIL to "Detail Sharpen",
+                        QualityPreset.LOW_LIGHT to "Night Denoise",
+                        QualityPreset.HDR_STYLE to "HDR Dynamic"
+                    ).forEach { (preset, label) ->
+                        val isSelected = uiState.qualityPreset == preset
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSelected) Color(0xFF00E676).copy(alpha = 0.25f) else Color(0xFF1E2638),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) Color(0xFF00E676) else Color.Transparent),
+                            modifier = Modifier
+                                .fillMaxWidth(0.55f)
+                                .padding(vertical = 3.dp)
+                                .clickable { viewModel.setQualityPreset(preset) }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = when (preset) {
+                                        QualityPreset.NATURAL -> Icons.Default.LightMode
+                                        QualityPreset.DETAIL -> Icons.Default.AutoAwesome
+                                        QualityPreset.LOW_LIGHT -> Icons.Default.Nightlight
+                                        QualityPreset.HDR_STYLE -> Icons.Default.HdrOn
+                                    },
+                                    contentDescription = null,
+                                    tint = if (isSelected) Color(0xFF00E676) else Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = label,
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Front Screen Flash Tone (When Front Camera active)
+                    if (isFrontCamera) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Flash Tone",
+                            color = Color(0xFFFFB300),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf(
+                                ScreenFlashTone.NEUTRAL_WHITE to "Neutral",
+                                ScreenFlashTone.WARM_SOFT to "Warm",
+                                ScreenFlashTone.COOL_BRIGHT to "Cool"
+                            ).forEach { (tone, name) ->
+                                val isToneSelected = uiState.screenFlashTone == tone
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (isToneSelected) Color(0xFFFFB300).copy(alpha = 0.25f) else Color(0xFF1E2638),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isToneSelected) Color(0xFFFFB300) else Color.Transparent),
+                                    modifier = Modifier.clickable { viewModel.setScreenFlashTone(tone) }
+                                ) {
+                                    Text(
+                                        text = name,
+                                        color = Color.White,
+                                        fontSize = 9.sp,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 8. Zoom Controls Pill (Bottom Center above shutter)
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -533,34 +856,34 @@ fun CameraScreen(
             }
         }
 
-        // 7. Status Message Notification
+        // 9. Status Message Notification
         AnimatedVisibility(
             visible = uiState.statusMessage != null,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 96.dp)
+                .padding(top = 110.dp)
         ) {
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = Color(0xFF131926).copy(alpha = 0.9f),
+                color = Color(0xFF131926).copy(alpha = 0.92f),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E5FF)),
                 modifier = Modifier.padding(horizontal = 24.dp)
             ) {
                 Text(
                     text = uiState.statusMessage ?: "",
                     color = Color.White,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
         }
 
-        // 8. Countdown Timer Display
+        // 10. Countdown Timer Display
         if (uiState.isCountingDown) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.35f))
+                    .background(Color.Black.copy(alpha = 0.4f))
                     .clickable { viewModel.cancelCountdown() },
                 contentAlignment = Alignment.Center
             ) {
@@ -580,7 +903,7 @@ fun CameraScreen(
             }
         }
 
-        // 9. Video Recording Duration Indicator
+        // 11. Video Recording Duration Indicator
         if (uiState.isRecordingVideo) {
             Row(
                 modifier = Modifier
@@ -608,7 +931,7 @@ fun CameraScreen(
             }
         }
 
-        // 10. Bottom Control Panel
+        // 12. Bottom Control Panel
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -676,7 +999,7 @@ fun CameraScreen(
                     }
                 }
 
-                // Shutter Button (Capture photo or Start/Stop recording)
+                // Shutter Button (Photo capture or Video record)
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -685,6 +1008,7 @@ fun CameraScreen(
                         .clip(CircleShape)
                         .background(if (uiState.captureMode == CaptureMode.VIDEO) Color.Red else Color.White)
                         .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             if (uiState.captureMode == CaptureMode.VIDEO) {
                                 if (uiState.isRecordingVideo) {
                                     activeRecording?.stop()
@@ -728,26 +1052,34 @@ fun CameraScreen(
                                     }
                                 }
                             } else {
-                                // Photo capture
-                                viewModel.initiateCapture {
-                                    val imgCap = imageCapture ?: return@initiateCapture
-                                    imgCap.takePicture(
-                                        ContextCompat.getMainExecutor(context),
-                                        object : ImageCapture.OnImageCapturedCallback() {
-                                            override fun onCaptureSuccess(image: ImageProxy) {
-                                                val buffer: ByteBuffer = image.planes[0].buffer
-                                                val bytes = ByteArray(buffer.remaining())
-                                                buffer.get(bytes)
-                                                image.close()
-                                                viewModel.processCapturedPhotoBytes(bytes)
-                                            }
+                                // Photo capture with screen flash coordination
+                                viewModel.initiateCapture(
+                                    onPrepareScreenFlash = { active ->
+                                        if (active) setWindowBrightness(uiState.screenFlashBrightness)
+                                        else restoreWindowBrightness()
+                                    },
+                                    onExecuteCapture = {
+                                        val imgCap = imageCapture ?: return@initiateCapture
+                                        imgCap.takePicture(
+                                            ContextCompat.getMainExecutor(context),
+                                            object : ImageCapture.OnImageCapturedCallback() {
+                                                override fun onCaptureSuccess(image: ImageProxy) {
+                                                    viewModel.dismissScreenFlash(restoreWindowBrightness)
+                                                    val buffer: ByteBuffer = image.planes[0].buffer
+                                                    val bytes = ByteArray(buffer.remaining())
+                                                    buffer.get(bytes)
+                                                    image.close()
+                                                    viewModel.processCapturedPhotoBytes(bytes)
+                                                }
 
-                                            override fun onError(exception: ImageCaptureException) {
-                                                exception.printStackTrace()
+                                                override fun onError(exception: ImageCaptureException) {
+                                                    viewModel.dismissScreenFlash(restoreWindowBrightness)
+                                                    exception.printStackTrace()
+                                                }
                                             }
-                                        }
-                                    )
-                                }
+                                        )
+                                    }
+                                )
                             }
                         }
                         .testTag("shutter_button"),
@@ -765,7 +1097,10 @@ fun CameraScreen(
 
                 // Switch Camera Lens Facing
                 IconButton(
-                    onClick = { viewModel.toggleLensFacing() },
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        viewModel.toggleLensFacing()
+                    },
                     modifier = Modifier
                         .size(54.dp)
                         .background(Color(0xFF131926), CircleShape)
