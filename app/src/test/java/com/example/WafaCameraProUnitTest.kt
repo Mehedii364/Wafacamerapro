@@ -76,4 +76,49 @@ class WafaCameraProUnitTest {
         val negativeReduction = ((original - increased).toDouble() / original.toDouble()) * 100.0
         assertEquals(-25.0, negativeReduction, 0.001)
     }
+
+    @Test
+    fun captureMode_enum_containsAllFifteenModes() {
+        val modes = CaptureMode.values()
+        assertEquals(15, modes.size)
+        assertTrue(modes.contains(CaptureMode.PHOTO))
+        assertTrue(modes.contains(CaptureMode.PORTRAIT))
+        assertTrue(modes.contains(CaptureMode.NIGHT))
+        assertTrue(modes.contains(CaptureMode.HDR))
+        assertTrue(modes.contains(CaptureMode.VIDEO))
+        assertTrue(modes.contains(CaptureMode.PRO))
+        assertTrue(modes.contains(CaptureMode.HI_RES))
+        assertTrue(modes.contains(CaptureMode.PANO))
+        assertTrue(modes.contains(CaptureMode.MACRO))
+        assertTrue(modes.contains(CaptureMode.SLO_MO))
+        assertTrue(modes.contains(CaptureMode.TIME_LAPSE))
+        assertTrue(modes.contains(CaptureMode.DUAL_VIDEO))
+        assertTrue(modes.contains(CaptureMode.UNDERWATER))
+        assertTrue(modes.contains(CaptureMode.STICKER))
+        assertTrue(modes.contains(CaptureMode.DOC_SCANNER))
+    }
+
+    @Test
+    fun cameraUiState_pinnedModes_defaultContainsPrimaryModes() {
+        val state = CameraUiState()
+        assertEquals(5, state.pinnedModes.size)
+        assertTrue(state.pinnedModes.contains(CaptureMode.VIDEO))
+        assertTrue(state.pinnedModes.contains(CaptureMode.PHOTO))
+        assertTrue(state.pinnedModes.contains(CaptureMode.PORTRAIT))
+        assertTrue(state.pinnedModes.contains(CaptureMode.NIGHT))
+        assertTrue(state.pinnedModes.contains(CaptureMode.PRO))
+        assertFalse(state.isRearrangeModesVisible)
+    }
+
+    @Test
+    fun shootingModes_serializationAndParsing_worksAccurately() {
+        val modes = listOf(CaptureMode.PHOTO, CaptureMode.NIGHT, CaptureMode.HI_RES, CaptureMode.PRO)
+        val serialized = modes.joinToString(",") { it.name }
+        assertEquals("PHOTO,NIGHT,HI_RES,PRO", serialized)
+
+        val deserialized = serialized.split(",").mapNotNull {
+            try { CaptureMode.valueOf(it.trim()) } catch (e: Exception) { null }
+        }
+        assertEquals(modes, deserialized)
+    }
 }

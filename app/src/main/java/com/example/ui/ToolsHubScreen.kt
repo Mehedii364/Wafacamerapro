@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +58,7 @@ fun ToolsHubScreen(
         ToolItem("duplicates", "Duplicate Cleaner", "Scan exact SHA-256 and perceptual visual duplicates", Icons.Default.CleaningServices),
         ToolItem("qr", "QR & Barcode Scanner", "Scan barcodes with ML Kit & maintain offline history", Icons.Default.QrCodeScanner),
         ToolItem("wallpaper", "Wallpaper Creator", "Fit photographs into phone wallpaper aspect ratios", Icons.Default.Wallpaper),
+        ToolItem("rearrange_modes", "Shooting Modes", "Rearrange, pin & customize camera shooting modes tray", Icons.Default.Tune),
         ToolItem("capabilities", "Hardware Diagnostics", "Detailed Camera2 sensor metrics & hardware levels", Icons.Default.Speed)
     )
 

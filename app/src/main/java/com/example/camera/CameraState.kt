@@ -11,7 +11,16 @@ enum class CaptureMode {
     NIGHT,
     HDR,
     VIDEO,
-    PRO
+    PRO,
+    HI_RES,
+    PANO,
+    MACRO,
+    SLO_MO,
+    TIME_LAPSE,
+    DUAL_VIDEO,
+    UNDERWATER,
+    STICKER,
+    DOC_SCANNER
 }
 
 enum class GridType {
@@ -89,5 +98,16 @@ data class CameraUiState(
     val focusRingPosition: Pair<Float, Float>? = null,
     val isFocusRingVisible: Boolean = false,
     val watermarkEnabled: Boolean = true,
-    val currentLensCapabilities: LensCapabilities? = null
+    val currentLensCapabilities: LensCapabilities? = null,
+    val pinnedModes: List<CaptureMode> = listOf(
+        CaptureMode.VIDEO,
+        CaptureMode.PHOTO,
+        CaptureMode.PORTRAIT,
+        CaptureMode.NIGHT,
+        CaptureMode.PRO
+    ),
+    val isRearrangeModesVisible: Boolean = false,
+    val timeLapseIntervalSeconds: Int = 2,
+    val isUnderwaterTouchLocked: Boolean = false,
+    val isStickerActive: Boolean = true
 )

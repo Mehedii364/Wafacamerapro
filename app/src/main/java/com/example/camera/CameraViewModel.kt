@@ -12,6 +12,7 @@ import com.example.core.compatibility.DeviceCameraAudit
 import com.example.core.compatibility.LensCapabilities
 import com.example.core.storage.MediaSaver
 import com.example.data.database.WafaDatabase
+import com.example.data.preferences.CameraPreferencesRepository
 import com.example.imageprocessing.ImageQualityEnhancer
 import com.example.imageprocessing.QualityPreset
 import com.example.imageprocessing.WatermarkRenderer
@@ -28,6 +29,8 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     private val _uiState = MutableStateFlow(CameraUiState())
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()
 
+    private val preferencesRepository = CameraPreferencesRepository(application)
+
     private var countdownJob: Job? = null
     private var videoDurationJob: Job? = null
     private var screenFlashJob: Job? = null
@@ -36,6 +39,21 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
 
     init {
         loadDeviceCapabilities()
+        loadSavedShootingModes()
+    }
+
+    private fun loadSavedShootingModes() {
+        viewModelScope.launch {
+            preferencesRepository.settingsFlow.collect { settings ->
+                val parsedModes = settings.shootingModesOrder.split(",")
+                    .mapNotNull { name ->
+                        try { CaptureMode.valueOf(name.trim()) } catch (e: Exception) { null }
+                    }
+                if (parsedModes.isNotEmpty()) {
+                    _uiState.update { it.copy(pinnedModes = parsedModes) }
+                }
+            }
+        }
     }
 
     private fun loadDeviceCapabilities() {
@@ -75,15 +93,71 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                 CaptureMode.NIGHT -> QualityPreset.LOW_LIGHT
                 CaptureMode.HDR -> QualityPreset.HDR_STYLE
                 CaptureMode.PHOTO -> QualityPreset.NATURAL
-                CaptureMode.PRO -> it.qualityPreset
-                CaptureMode.VIDEO -> it.qualityPreset
+                CaptureMode.HI_RES -> QualityPreset.DETAIL
+                CaptureMode.MACRO -> QualityPreset.DETAIL
+                CaptureMode.PANO -> QualityPreset.HDR_STYLE
+                CaptureMode.DOC_SCANNER -> QualityPreset.DETAIL
+                CaptureMode.STICKER -> QualityPreset.NATURAL
+                CaptureMode.PRO,
+                CaptureMode.VIDEO,
+                CaptureMode.SLO_MO,
+                CaptureMode.TIME_LAPSE,
+                CaptureMode.DUAL_VIDEO,
+                CaptureMode.UNDERWATER -> it.qualityPreset
             }
             it.copy(
                 captureMode = mode,
                 qualityPreset = preset,
-                isProMode = (mode == CaptureMode.PRO)
+                isProMode = (mode == CaptureMode.PRO),
+                isRearrangeModesVisible = false
             )
         }
+    }
+
+    fun openRearrangeModes() {
+        _uiState.update { it.copy(isRearrangeModesVisible = true) }
+    }
+
+    fun closeRearrangeModes() {
+        _uiState.update { it.copy(isRearrangeModesVisible = false) }
+    }
+
+    fun updatePinnedModes(newModes: List<CaptureMode>) {
+        _uiState.update { it.copy(pinnedModes = newModes) }
+        viewModelScope.launch {
+            val serialized = newModes.joinToString(",") { it.name }
+            preferencesRepository.updateShootingModesOrder(serialized)
+        }
+    }
+
+    fun togglePinMode(mode: CaptureMode) {
+        val current = _uiState.value.pinnedModes.toMutableList()
+        if (current.contains(mode)) {
+            if (current.size > 2) {
+                current.remove(mode)
+                updatePinnedModes(current)
+            }
+        } else {
+            current.add(mode)
+            updatePinnedModes(current)
+        }
+    }
+
+    fun movePinnedMode(fromIndex: Int, toIndex: Int) {
+        val current = _uiState.value.pinnedModes.toMutableList()
+        if (fromIndex in current.indices && toIndex in current.indices && fromIndex != toIndex) {
+            val item = current.removeAt(fromIndex)
+            current.add(toIndex, item)
+            updatePinnedModes(current)
+        }
+    }
+
+    fun toggleUnderwaterTouchLock() {
+        _uiState.update { it.copy(isUnderwaterTouchLocked = !it.isUnderwaterTouchLocked) }
+    }
+
+    fun setTimeLapseInterval(seconds: Int) {
+        _uiState.update { it.copy(timeLapseIntervalSeconds = seconds) }
     }
 
     fun setProMode(isPro: Boolean) {

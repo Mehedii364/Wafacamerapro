@@ -10,6 +10,7 @@ import android.os.Build
 import android.provider.MediaStore
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -213,6 +214,19 @@ fun CameraScreen(
                 }
             }
         }
+        return
+    }
+
+    if (uiState.isRearrangeModesVisible) {
+        BackHandler {
+            viewModel.closeRearrangeModes()
+        }
+        RearrangeModesScreen(
+            currentPinnedModes = uiState.pinnedModes,
+            onSavePinnedModes = { viewModel.updatePinnedModes(it) },
+            onSelectModeAndClose = { viewModel.setCaptureMode(it) },
+            onBack = { viewModel.closeRearrangeModes() }
+        )
         return
     }
 
@@ -936,6 +950,124 @@ fun CameraScreen(
             }
         }
 
+        // Mode Specific HUD Overlays
+        val modeHudText = when (uiState.captureMode) {
+            CaptureMode.NIGHT -> "🌙 Night Sight • Multi-Frame Stacking"
+            CaptureMode.HI_RES -> "⊞ 50MP Full Sensor • High-Res Unbinned"
+            CaptureMode.PANO -> "↔ Panorama Horizon • Keep Level & Pan Slowly"
+            CaptureMode.MACRO -> "🌷 Super Macro Focus • 4-10cm Close Range"
+            CaptureMode.SLO_MO -> "⚡ Slo-Mo • 120 FPS High-Speed Video"
+            CaptureMode.TIME_LAPSE -> "⏱ Time-Lapse • ${uiState.timeLapseIntervalSeconds}s Interval (30x Speed)"
+            CaptureMode.DUAL_VIDEO -> "📹 View Video • Dual Front & Rear Preview"
+            CaptureMode.UNDERWATER -> "🌊 Underwater • Volume Keys Shutter"
+            CaptureMode.STICKER -> "✨ Dynamic Live Watermark Stamp Active"
+            CaptureMode.DOC_SCANNER -> "📄 Doc Scanner • Align Document Corners"
+            CaptureMode.PORTRAIT -> "👤 Portrait Bokeh • Depth Simulation Active"
+            CaptureMode.PRO -> "🎛 Pro Manual Control Active"
+            CaptureMode.HDR -> "🔆 HDR Style • Dynamic Range Enhancement"
+            else -> null
+        }
+
+        if (modeHudText != null && !uiState.isRecordingVideo) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFF131926).copy(alpha = 0.90f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f)),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 92.dp)
+            ) {
+                Text(
+                    text = modeHudText,
+                    color = Color.White,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                )
+            }
+        }
+
+        // Panorama Horizon Guide
+        if (uiState.captureMode == CaptureMode.PANO) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth(0.85f)
+                    .height(2.dp)
+                    .background(Color(0xFF00E5FF).copy(alpha = 0.7f))
+            )
+        }
+
+        // Doc Scanner Corner Guides
+        if (uiState.captureMode == CaptureMode.DOC_SCANNER) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(260.dp, 340.dp)
+                    .border(2.dp, Color(0xFF00E5FF).copy(alpha = 0.75f), RoundedCornerShape(14.dp))
+            )
+        }
+
+        // Dual Video PiP Frame
+        if (uiState.captureMode == CaptureMode.DUAL_VIDEO) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 96.dp, end = 16.dp)
+                    .size(80.dp, 110.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF181D26))
+                    .border(2.dp, Color(0xFF00E5FF), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Cameraswitch,
+                        contentDescription = "Front PiP",
+                        tint = Color(0xFF00E5FF),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Front PiP", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // Underwater Touch Lock Overlay
+        if (uiState.captureMode == CaptureMode.UNDERWATER && uiState.isUnderwaterTouchLocked) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF002233).copy(alpha = 0.5f))
+                    .clickable { viewModel.toggleUnderwaterTouchLock() },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(48.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Touchscreen Locked (Underwater Protection)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Press Volume Button to Shoot • Tap to Unlock", color = Color(0xFF9EAEC1), fontSize = 12.sp)
+                }
+            }
+        }
+
+        // Sticker Live Stamp
+        if (uiState.captureMode == CaptureMode.STICKER) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 20.dp, bottom = 175.dp)
+                    .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(8.dp))
+                    .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Column {
+                    Text("WAFA CAMERA PRO", color = Color(0xFF00E5FF), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("50MP AI MATRIX • Mehedi364", color = Color.White, fontSize = 9.sp)
+                }
+            }
+        }
+
         // 12. Bottom Control Panel (GCam Carousel & Shutter Bar)
         Column(
             modifier = Modifier
@@ -945,20 +1077,39 @@ fun CameraScreen(
                 .padding(vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Computational Mode Selector Carousel
+            // Dynamic Computational Mode Selector Carousel
+            val carouselModes = remember(uiState.pinnedModes, uiState.captureMode) {
+                if (uiState.pinnedModes.contains(uiState.captureMode)) {
+                    uiState.pinnedModes
+                } else {
+                    uiState.pinnedModes + uiState.captureMode
+                }
+            }
+
             LazyRow(
                 modifier = Modifier.padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(22.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)
             ) {
-                items(listOf(
-                    CaptureMode.NIGHT to "NIGHT",
-                    CaptureMode.PORTRAIT to "PORTRAIT",
-                    CaptureMode.PHOTO to "PHOTO",
-                    CaptureMode.HDR to "HDR",
-                    CaptureMode.VIDEO to "VIDEO",
-                    CaptureMode.PRO to "PRO"
-                )) { (mode, label) ->
+                items(carouselModes) { mode ->
                     val isSelected = uiState.captureMode == mode
+                    val label = when (mode) {
+                        CaptureMode.NIGHT -> "NIGHT"
+                        CaptureMode.PORTRAIT -> "PORTRAIT"
+                        CaptureMode.PHOTO -> "PHOTO"
+                        CaptureMode.HDR -> "HDR"
+                        CaptureMode.VIDEO -> "VIDEO"
+                        CaptureMode.PRO -> "PRO"
+                        CaptureMode.HI_RES -> "HI-RES"
+                        CaptureMode.PANO -> "PANO"
+                        CaptureMode.MACRO -> "MACRO"
+                        CaptureMode.SLO_MO -> "SLO-MO"
+                        CaptureMode.TIME_LAPSE -> "TIME-LAPSE"
+                        CaptureMode.DUAL_VIDEO -> "VIEW VIDEO"
+                        CaptureMode.UNDERWATER -> "UNDERWATER"
+                        CaptureMode.STICKER -> "STICKER"
+                        CaptureMode.DOC_SCANNER -> "DOC SCANNER"
+                    }
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(14.dp))
@@ -968,11 +1119,34 @@ fun CameraScreen(
                                 viewModel.setCaptureMode(mode)
                             }
                             .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .testTag("mode_tab_${mode.name.lowercase()}")
                     ) {
                         Text(
                             text = label,
                             color = if (isSelected) Color(0xFF00E5FF) else Color(0xFF9EAEC1),
                             fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+                // "MORE" tab button that opens the Rearrange Modes Screen
+                item {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF1E2638))
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.openRearrangeModes()
+                            }
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .testTag("mode_tab_more")
+                    ) {
+                        Text(
+                            text = "MORE",
+                            color = Color(0xFF00E5FF),
+                            fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
                     }
@@ -1016,16 +1190,21 @@ fun CameraScreen(
                 }
 
                 // Shutter Button
+                val isVideoTypeMode = (uiState.captureMode == CaptureMode.VIDEO ||
+                                       uiState.captureMode == CaptureMode.SLO_MO ||
+                                       uiState.captureMode == CaptureMode.TIME_LAPSE ||
+                                       uiState.captureMode == CaptureMode.DUAL_VIDEO)
+
                 Box(
                     modifier = Modifier
                         .size(80.dp)
-                        .border(4.dp, if (uiState.captureMode == CaptureMode.VIDEO) Color.Red else Color.White, CircleShape)
+                        .border(4.dp, if (isVideoTypeMode) Color.Red else Color.White, CircleShape)
                         .padding(6.dp)
                         .clip(CircleShape)
-                        .background(if (uiState.captureMode == CaptureMode.VIDEO) Color.Red else Color.White)
+                        .background(if (isVideoTypeMode) Color.Red else Color.White)
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            if (uiState.captureMode == CaptureMode.VIDEO) {
+                            if (isVideoTypeMode) {
                                 if (uiState.isRecordingVideo) {
                                     activeRecording?.stop()
                                     activeRecording = null
@@ -1033,8 +1212,14 @@ fun CameraScreen(
                                 } else {
                                     val vidCap = videoCapture
                                     if (vidCap != null) {
+                                        val modePrefix = when (uiState.captureMode) {
+                                            CaptureMode.SLO_MO -> "SLOMO"
+                                            CaptureMode.TIME_LAPSE -> "TIMELAPSE"
+                                            CaptureMode.DUAL_VIDEO -> "DUALVIEW"
+                                            else -> "VID"
+                                        }
                                         val contentValues = ContentValues().apply {
-                                            put(MediaStore.Video.Media.DISPLAY_NAME, "WAFA_VID_${System.currentTimeMillis()}.mp4")
+                                            put(MediaStore.Video.Media.DISPLAY_NAME, "WAFA_${modePrefix}_${System.currentTimeMillis()}.mp4")
                                             put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
                                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                                                 put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/WafaCameraPro")

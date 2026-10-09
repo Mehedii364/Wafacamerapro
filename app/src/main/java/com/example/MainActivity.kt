@@ -250,6 +250,11 @@ fun MainContent(
                     "qr" -> QrScannerScreen()
                     "wallpaper" -> WallpaperScreen()
                     "capabilities" -> CapabilitiesScreen()
+                    "rearrange_modes" -> {
+                        activeSubTool = null
+                        onSelectTab("camera")
+                        cameraViewModel.openRearrangeModes()
+                    }
                 }
             } else {
                 when (currentTab) {

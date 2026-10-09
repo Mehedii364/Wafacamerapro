@@ -25,7 +25,8 @@ data class CameraSettings(
     val watermarkEnabled: Boolean = false,
     val selectedWatermarkPresetId: Long = 1L,
     val audioEnabledForVideo: Boolean = true,
-    val darkTheme: Boolean = true
+    val darkTheme: Boolean = true,
+    val shootingModesOrder: String = "VIDEO,PHOTO,PORTRAIT,NIGHT,PRO"
 )
 
 class CameraPreferencesRepository(private val context: Context) {
@@ -42,6 +43,7 @@ class CameraPreferencesRepository(private val context: Context) {
         val WATERMARK_PRESET_ID = longPreferencesKey("watermark_preset_id")
         val AUDIO_VIDEO = booleanPreferencesKey("audio_video")
         val DARK_THEME = booleanPreferencesKey("dark_theme")
+        val SHOOTING_MODES_ORDER = stringPreferencesKey("shooting_modes_order")
     }
 
     val settingsFlow: Flow<CameraSettings> = context.dataStore.data.map { prefs ->
@@ -56,7 +58,8 @@ class CameraPreferencesRepository(private val context: Context) {
             watermarkEnabled = prefs[Keys.WATERMARK_ENABLED] ?: false,
             selectedWatermarkPresetId = prefs[Keys.WATERMARK_PRESET_ID] ?: 1L,
             audioEnabledForVideo = prefs[Keys.AUDIO_VIDEO] ?: true,
-            darkTheme = prefs[Keys.DARK_THEME] ?: true
+            darkTheme = prefs[Keys.DARK_THEME] ?: true,
+            shootingModesOrder = prefs[Keys.SHOOTING_MODES_ORDER] ?: "VIDEO,PHOTO,PORTRAIT,NIGHT,PRO"
         )
     }
 
@@ -94,5 +97,9 @@ class CameraPreferencesRepository(private val context: Context) {
 
     suspend fun updateAudioForVideo(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUDIO_VIDEO] = enabled }
+    }
+
+    suspend fun updateShootingModesOrder(order: String) {
+        context.dataStore.edit { it[Keys.SHOOTING_MODES_ORDER] = order }
     }
 }
